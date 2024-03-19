@@ -64,6 +64,7 @@ func main() {
 	openRouter.PATCH("/update-user/:id", controller.UpdateTheUser)
 	openRouter.GET("/rooms", controller.GetAllRooms)
 	openRouter.GET("/room/:id", controller.GetRoom)
+	openRouter.GET("/current-user", controller.CurrentUserGet)
 
 	router.Run("localhost:8080")
 }

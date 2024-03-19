@@ -87,7 +87,7 @@ func GetAllRooms(context *gin.Context) {
 		context.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
-	context.JSON(http.StatusOK, gin.H{"rooms": rooms})
+	context.JSON(http.StatusOK, gin.H{"Rooms": rooms})
 
 	tx.Commit()
 }

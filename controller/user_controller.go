@@ -402,3 +402,16 @@ func UpdateTheUser(context *gin.Context) {
 	tx.Commit()
 
 }
+
+func CurrentUserGet(context *gin.Context) {
+	tx := database.DB.Begin()
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	user := util.CurrentUser(context)
+	context.JSON(http.StatusOK, gin.H{"User": user})
+	tx.Commit()
+}
