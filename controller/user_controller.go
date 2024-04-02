@@ -6,6 +6,7 @@ import (
 	"ToLet/util"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 
 	"os"
@@ -415,3 +416,268 @@ func CurrentUserGet(context *gin.Context) {
 	context.JSON(http.StatusOK, gin.H{"User": user})
 	tx.Commit()
 }
+
+// func AddImageURL(context *gin.Context) {
+// 	tx := database.DB.Begin()
+
+// 	defer func() {
+// 		if r := recover(); r != nil {
+// 			tx.Rollback()
+// 		}
+// 	}()
+// 	curUser := util.CurrentUser(context)
+
+// 	// Fetch the user from the database
+// 	user, err := model.FindUserById(curUser.ID)
+// 	if err != nil {
+// 		context.JSON(http.StatusBadRequest, gin.H{"error": "User not found."})
+// 		return
+// 	}
+
+// 	// Check if the logged-in user is the owner of the profile
+// 	if user.ID != curUser.ID {
+// 		context.JSON(http.StatusUnauthorized, gin.H{"error": "Access denied. You can only update your own details."})
+// 		return
+// 	}
+
+// 	// Bind the JSON request to the input model
+// 	var input struct {
+// 		ImgURL string `json:"img_url"`
+// 	}
+// 	if err := context.ShouldBindJSON(&input); err != nil {
+// 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
+
+// 	// Update the user's image URL
+// 	user.ImgURL = input.ImgURL
+
+// 	// Save the updated user to the database
+// 	if err := model.UpdateUser(&user); err != nil {
+// 		tx.Rollback()
+// 		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user."})
+// 		return
+// 	}
+
+// 	tx.Commit()
+// 	context.JSON(http.StatusOK, gin.H{"updatedUser": user})
+// }
+
+func UploadProfileImage(c *gin.Context) {
+	tx := database.DB.Begin()
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Get the current user
+	curUser := util.CurrentUser(c)
+
+	// Fetch the user from the database
+	user, err := model.FindUserById(curUser.ID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found."})
+		return
+	}
+
+	// Check if the logged-in user is the owner of the profile
+	if user.ID != curUser.ID {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Access denied. You can only update your own details."})
+		return
+	}
+
+	// Retrieve the uploaded file from the form
+	file, err := c.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
+		return
+	}
+
+	// Create a unique filename for the uploaded file
+	filename := strconv.Itoa(int(curUser.ID)) + "_" + file.Filename
+
+	// Save the uploaded file to the server
+	if err := c.SaveUploadedFile(file, "uploads/"+filename); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		return
+	}
+
+	fmt.Println("user", user)
+
+	// Update the user's ImgURL with the filename or URL of the uploaded image
+	// In this example, we assume the image is stored in a directory named "uploads"
+	user.ImgURL = filename
+
+	// Save the updated user to the database
+	err = database.DB.Omit("password", "email", "role", "role_id", "contact_number", "valid_key").Save(&user).Error
+	if err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"updatedUser": user})
+
+	// updatedUser, err := user.Save()
+	// if err != nil {
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save user"})
+	// 	return
+	// }
+
+	c.JSON(http.StatusOK, gin.H{"message": "File uploaded successfully", "img_url": user.ImgURL})
+	tx.Commit()
+}
+
+func UploadProfileImageNew(c *gin.Context) {
+	tx := database.DB.Begin()
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Get the current user
+	curUser := util.CurrentUser(c)
+
+	// Fetch the user from the database
+	user, err := model.FindUserById(curUser.ID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found."})
+		return
+	}
+
+	// Check if the logged-in user is the owner of the profile
+	if user.ID != curUser.ID {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Access denied. You can only update your own details."})
+		return
+	}
+
+	// Parse the multipart form data
+	form, err := c.MultipartForm()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	defer form.RemoveAll()
+
+	// Retrieve the uploaded file from the form
+	fileHeaders := form.File["image"]
+	if len(fileHeaders) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
+		return
+	}
+
+	// Retrieve the first file (assuming single file upload)
+	fileHeader := fileHeaders[0]
+
+	// Open the uploaded file
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
+		return
+	}
+	defer file.Close()
+
+	// Create a unique filename for the uploaded file
+	filename := strconv.Itoa(int(curUser.ID)) + "_" + fileHeader.Filename
+
+	// Save the uploaded file to the server
+	dst, err := os.Create("/uploads/" + filename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create file"})
+		return
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		return
+	}
+
+	// Update the user's ImgURL with the filename or URL of the uploaded image
+	// In this example, we assume the image is stored in a directory named "uploads"
+	user.ImgURL = filename
+
+	// Save the updated user to the database
+	err = database.DB.Omit("password", "email", "role", "role_id", "contact_number", "valid_key").Save(&user).Error
+	if err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"updatedUser": user})
+
+	tx.Commit()
+}
+
+// func UpdateTheUserProfile(context *gin.Context) {
+// 	tx := database.DB.Begin()
+
+// 	defer func() {
+// 		if r := recover(); r != nil {
+// 			tx.Rollback()
+// 		}
+// 	}()
+
+// 	curUser := util.CurrentUser(context)
+
+// 	var input struct {
+// 		model.User
+// 		Image *multipart.FileHeader `form:"image"`
+// 	}
+
+// 	if err := context.ShouldBindJSON(&input); err != nil {
+// 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
+
+// 	user, err := model.FindUserById(curUser.ID)
+// 	if err != nil {
+// 		context.JSON(http.StatusBadRequest, gin.H{"error": "User not found."})
+// 		return
+// 	}
+
+// 	if user.ID != curUser.ID {
+// 		context.JSON(http.StatusUnauthorized, gin.H{"error": "Access denied. You can only update your own details."})
+// 		return
+// 	}
+
+// 	user.FirstName = input.FirstName
+// 	user.LastName = input.LastName
+// 	user.Gender = input.Gender
+// 	user.Address = input.Address
+
+// 	// Check if the user uploaded a new image
+// 	if input.Image != nil {
+// 		// Retrieve the uploaded file from the form
+// 		file, err := input.Image.Open()
+// 		if err != nil {
+// 			context.JSON(http.StatusBadRequest, gin.H{"error": "Failed to open uploaded file"})
+// 			return
+// 		}
+// 		defer file.Close()
+
+// 		// Create a unique filename for the uploaded file
+// 		filename := strconv.Itoa(int(curUser.ID)) + "_" + input.Image.Filename
+
+// 		// Save the uploaded file to the server
+// 		if err := context.SaveUploadedFile(input.Image, "uploads/"+filename); err != nil {
+// 			context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+// 			return
+// 		}
+
+// 		// Update the user's ImgURL with the filename or URL of the uploaded image
+// 		user.ImgURL = "/uploads/" + filename
+// 	}
+
+// 	if err := database.DB.Omit("password", "email", "role", "role_id", "contact_number", "valid_key").Save(&user).Error; err != nil {
+// 		tx.Rollback()
+// 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		return
+// 	}
+// 	context.JSON(http.StatusOK, gin.H{"updatedUser": user})
+
+// 	tx.Commit()
+// }

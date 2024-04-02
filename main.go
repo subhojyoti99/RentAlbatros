@@ -28,12 +28,14 @@ func DBConnect() {
 func main() {
 	router := gin.Default()
 
+	router.Static("/uploads", "./uploads")
+
 	loadEnv()
 	DBConnect()
 
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000") // Adjust with your React app's address
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 
@@ -64,7 +66,9 @@ func main() {
 	openRouter.PATCH("/update-user/:id", controller.UpdateTheUser)
 	openRouter.GET("/rooms", controller.GetAllRooms)
 	openRouter.GET("/room/:id", controller.GetRoom)
-	openRouter.GET("/current-user", controller.CurrentUserGet)
+	openRouter.GET("/profile", controller.CurrentUserGet)
+	// openRouter.PATCH("/profile/img-url", controller.AddImageURL)
+	openRouter.PUT("/profile/img-url", controller.UploadProfileImageNew)
 
 	router.Run("localhost:8080")
 }

@@ -101,16 +101,16 @@ func GetRoom(context *gin.Context) {
 		}
 	}()
 
-	var rooms []model.Room
+	var room model.Room
 
 	id, _ := strconv.Atoi(context.Param("id"))
 
-	err := database.DB.Where("id=?", id).Preload("Owner").Preload("Owner.OwnedRooms").Preload("Owner.Rentals").Find(&rooms).Error
+	err := database.DB.Where("id=?", id).Preload("Owner").Preload("Owner.OwnedRooms").Preload("Owner.Rentals").Find(&room).Error
 	if err != nil {
 		context.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
-	context.JSON(http.StatusOK, gin.H{"rooms": rooms})
+	context.JSON(http.StatusOK, gin.H{"Room": room})
 
 	tx.Commit()
 }

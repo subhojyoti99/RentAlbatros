@@ -2,7 +2,6 @@ package model
 
 import (
 	"ToLet/database"
-	"fmt"
 	"html"
 	"strings"
 
@@ -44,20 +43,22 @@ import (
 
 type User struct {
 	gorm.Model
-	ID            uint   `gorm:"primary_key; auto_increment"`
-	FirstName     string `gorm:"required" json:"first_name"`
-	LastName      string `gorm:"required" json:"last_name"`
-	Gender        string `gorm:"required" json:"gender"`
-	Email         string `gorm:"required" json:"email"`
-	ContactNumber string `gorm:"required" json:"contact_number"`
-	Password      string `gorm:"required" json:"password"`
-	Role          string `gorm:"required" json:"role"`
-	RoleID        uint   `gorm:"not null;DEFAULT:3" json:"role_id"`
-	ValidKey      string `json:"valid_key"`
-	Address       string `json:"address"`
-	Rentals       []Rental
-	Payments      []Payment
-	OwnedRooms    []Room `gorm:"foreignKey:OwnerID"`
+	ID                  uint   `gorm:"primary_key; auto_increment"`
+	FirstName           string `gorm:"required" json:"first_name"`
+	LastName            string `gorm:"required" json:"last_name"`
+	Gender              string `gorm:"required" json:"gender"`
+	Email               string `gorm:"unique;not null" json:"email"`
+	ContactNumber       string `gorm:"required" json:"contact_number"`
+	Password            string `gorm:"required" json:"password"`
+	Role                string `gorm:"required" json:"role"`
+	RoleID              uint   `gorm:"not null;DEFAULT:3" json:"role_id"`
+	ValidKey            string `json:"valid_key"`
+	Address             string `json:"address"`
+	ImgURL              string `json:"img_url"`
+	registration_source string `gorm:"not null"`
+	Rentals             []Rental
+	Payments            []Payment
+	OwnedRooms          []Room `gorm:"foreignKey:OwnerID"`
 }
 
 func (u *User) Save() (*User, error) {
@@ -134,8 +135,6 @@ func FindUser(user *User, id int) (err error) {
 
 // Update user
 func UpdateUser(user *User) (err error) {
-	fmt.Println("du2uduhfwhfwfwoehod", user)
-
 	err = database.DB.Omit("password").Save(user).Error
 	if err != nil {
 		return err
