@@ -68,7 +68,7 @@ func main() {
 	openRouter.GET("/room/:id", controller.GetRoom)
 	openRouter.GET("/profile", controller.CurrentUserGet)
 	// openRouter.PATCH("/profile/img-url", controller.AddImageURL)
-	openRouter.PUT("/profile/img-url", controller.UploadProfileImageNew)
+	openRouter.PUT("/profile/upload-image", controller.UploadProfileImage)
 
 	router.Run("localhost:8080")
 }
